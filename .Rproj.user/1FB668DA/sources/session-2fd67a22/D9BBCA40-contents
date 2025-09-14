@@ -1,0 +1,372 @@
+---
+title: "Mangrove Monitoring Experiment"
+output: html_document
+date: "2025-02-09"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## load libraries
+```{r}
+library(dplyr)
+library(xlsx)
+library(ggplot2)
+library(gridExtra)
+library(data.table)
+library(openxlsx)
+```
+
+```{r}
+# load data
+mangrove <- read.xlsx("mangrove_seedling.xlsx", sheetName = "raw_data")
+head(mangrove)
+```
+
+## create factors
+```{r}
+mangrove$Plot.Size = as.factor(mangrove$Plot.Size)
+mangrove$Site <- as.factor(mangrove$Site)
+mangrove$Species <- as.factor(mangrove$Species)
+mangrove$Plot.No <- as.factor(mangrove$Plot.No)
+```
+
+```{r}
+head(mangrove)
+```
+
+
+
+```{r}
+df <- mangrove %>% select(-NA., -NA..1)
+head(df)
+```
+
+Note:
+- Mature tree has a DBH of 5cm and above
+- Sapling tree has a DBH of between 1 and 5 (1cm < DBH < 5cm) and height greater than 1m.
+- Seedling tree has a H of less than 1m.
+- In the circular area (12.6 square meters), we count planted trees.
+- In the square area (100 square meters), we count mature trees and stamps if applicable.
+- In the 1x1 area, we count self-regenerated seedling.
+- In the 2.5x2.5m (6.25 square meters), we count sapling trees.
+- During the experiment, seedling and sapling DBH were measured in mm and mature DBH in cm.
+So to make DBH uniform we convert mm to cm.
+
+
+```{r}
+# convert mm to cm for DBH whereplot size is 12.6, 1, 6.25
+df <- df %>% mutate(DBHcm = ifelse(Plot.Size == 100, DBH, DBH/10))
+head(df)
+
+write.xlsx(df, file="mangrove_monitoring.xlsx", sheetName="data",
+           rownames=FALSE)
+```
+
+```{r}
+# summary statistics
+summary(df)
+```
+```{r}
+# summary statistics per site
+summary_stats <- df %>% 
+  group_by(Site) %>% 
+  summarise(
+    Mean_DBH = mean(DBHcm, na.rm = TRUE),
+    Median_DBH = median(DBHcm, na.rm = TRUE),
+    Mean_Height = mean(H, na.rm = TRUE),
+    Median_Height = median(H, na.rm = TRUE),
+    Count = n()
+  )
+
+print(summary_stats)
+```
+
+```{r}
+write.xlsx(summary_stats,file = "monitoring_results.xlsx", sheetName = "summary_stats")
+```
+
+
+## Planted Stem Density
+planted stem density
+
+```{r}
+# planted stem density
+planted <- df %>% 
+  filter(Plot.Size == 12.6) %>%
+  group_by(Site)%>%
+  summarise(Total_Count = sum(Count))
+
+# Calculate stem density per ha
+planted$Density <- planted$Total_Count/12.6*10000
+planted
+```
+```{r}
+write.xlsx(planted,file = "monitoring_results.xlsx", sheetName = "planted_density", 
+           append = TRUE)
+```
+
+
+```{r}
+# save density table
+png("planted_density.png", width = 300, height = 150) # create png file
+grid.table(planted)    # renders the data frame table
+dev.off()   # closes the graphics device, saving the png file 
+```
+
+
+# available species
+```{r}
+levels(df$Species)
+```
+In Sabaki we have only 4 mangrove species; 
+- Avicennia marina (Mchu)    
+- Bruguiera gymnorhiza (Muia)
+- Ceriops tagal (Mkandaa)      
+- Rhizophora mucronata (Mkoko)
+
+# planted species
+```{r}
+planted_species <- df %>%
+  filter(Plot.Size == 12.6) %>%
+  group_by(Site, Species) %>%
+  summarise(Total_Count = sum(Count), .groups = "drop")
+```
+
+```{r}
+# calculate planted stem density per species 
+planted_species$Density <- planted_species$Total_Count/12.6*10000
+planted_species
+```
+
+
+
+```{r}
+#write.xlsx(planted_species,file = "monitoring_results.xlsx", sheetName = "planted_species", 
+#           append = TRUE)
+```
+
+```{r}
+png("planted_species_density.png", width = 800, height = 400) # create png file
+grid.table(planted_species) # renders data frame table
+dev.off()  # closes the graphics device and saving the file
+```
+
+
+```{r}
+# dead tree
+dead <- df %>% 
+  filter(Plot.Size == 12.6, Remarks == "Dead") %>%
+  group_by(Site) %>%
+  summarise(Dead_Count = sum(Count))
+
+dead$Density <- dead$Dead_Count/12.6*10000
+dead
+```
+
+```{r}
+# dead tree per species
+dead <- df %>% 
+  filter(Plot.Size == 12.6, Remarks == "Dead") %>%
+  group_by(Site, Species) %>%
+  summarise(Dead_Count = sum(Count), .groups = "drop") # ungroup result
+  # ungroup()
+
+dead$Density <- dead$Dead_Count/12.6*10000
+dead
+```
+
+```{r}
+png("dead_density.png", width = 300, height = 150) # create png file
+grid.table(dead) # renders data frame table
+dev.off()  # closes the graphics device and saving the file
+```
+
+Both plot1 and 2 have same dead trees of about 1,587.303 dead trees per hectare.
+Plot 3 and 4 has no dead trees.
+```{r}
+# percentage survived
+survived <- data.frame(Plot_no = c(1, 2), perc.survived = c(0, 0))
+survived$perc.survived[1] = planted$Density[1]/(dead$Density[1]+planted$Density[1]) * 100
+survived$perc.survived[2] = planted$Density[2]/(dead$Density[2]+planted$Density[2]) * 100
+survived 
+```
+```{r}
+png("survival.png", width = 300, height = 150) # create png file
+grid.table(survived) # renders data frame table
+dev.off()  
+```
+
+In plot 1, there is 91.67% survival and 93.55% survival in plot 2.
+
+
+# Mature Trees
+```{r}
+mature <- df %>% 
+  filter(Plot.Size == 100) %>%
+  group_by(Site, Species)%>%
+  summarise(Total_Count = sum(Count), .groups = "drop")
+
+
+# Calculate stem density per ha
+mature$Density <- (mature$Total_Count/100)*10000
+mature
+```
+Mida has a mature tree density of 600 stems/ha while Sabaki has 2,400 stems/ha.
+
+
+```{r}
+png("mature_density.png", width = 300, height = 150) # create png file
+grid.table(mature) # renders data frame table
+dev.off()
+```
+
+
+In Sabaki mangrove forest comprises of only Avicennia marina (Mchu) as mature trees.
+Due to reforestation effort from Sabaki community, 3 more species are now available as planted mangrove species(Bruguiera gymnorhiza (Muia), Ceriops tagal (Mkandaa)      
+and Rhizophora mucronata (Mkoko))
+
+
+# Self Regeneration
+```{r}
+self.regeneration <- df %>%
+  filter(Plot.Size == 1) %>%
+  group_by(Site, Species) %>%
+  summarise(Total_Count = sum(Count), .groups = "drop")
+
+self.regeneration$Density <- (self.regeneration$Total_Count/1)*10000
+self.regeneration
+```
+
+```{r}
+png("regeneration.png", width = 300, height = 150) # create png file
+grid.table(self.regeneration) # renders data frame table
+dev.off()
+```
+
+
+
+```{r}
+sum(self.regeneration$Density)/4
+```
+There is no regeneration in plots 1 and 4.
+Plots 2 and 3 have regeneration density of about 10,000 seedlings/ha and 90,000 seedlings/ha.
+In general Sabaki mangrove forest has regeneration density of about 25,000 seedlings/ha.
+
+```{r}
+regeneration_species <- df %>%
+  filter(Plot.Size == 1) %>%
+  group_by(Plot.No, Species) %>%
+  summarise(Total_Count = sum(Count))
+
+regeneration_species$Density <- (regeneration_species$Total_Count/1)*10000
+regeneration_species
+```
+```{r}
+png("regeneration_species.png", width = 300, height = 150) # create png file
+grid.table(regeneration_species) # renders data frame table
+dev.off()
+```
+
+
+Avicennia marina is the only species regenerated in Sabaki mangrove forest according to the data collected.
+
+
+# sapling
+```{r}
+sapling <- df %>%
+  filter(Plot.Size == 6.25) %>%
+  group_by(Site, Species) %>%
+  summarise(Total_Count = sum(Count), .groups = "drop")
+
+sapling$Density <- (sapling$Total_Count/6.25)*10000
+sapling
+```
+
+```{r}
+png("sapling_density.png", width = 400, height = 150) # create png file
+grid.table(sapling) # renders data frame table
+dev.off()
+```
+
+
+There is no sapling recorded in plot 1 and 2.
+
+In plot 3, 2 species (Avicennia marina and Rhizophora mucronata) were observed as sapling with stem density of about 1,600 stems/ha and 4,800 stems/ha respectively.
+
+In plot 4. the sapling density is 1,600 stems/ha.
+
+# summary statistics
+
+
+```{r}
+summary_stats <- data.table(t(summary(df[, c("DBHcm", "H")])))
+summary_stats
+```
+```{r}
+png("summary.png", width = 300, height = 450) # create png file
+grid.table(summary_stats) # renders data frame table
+dev.off()
+```
+
+
+```{r}
+df <- df %>%
+  mutate(category = case_when(
+    H < 1 ~ "seedling",
+    H >= 1 & DBHcm < 5 ~ "sapling",
+    DBHcm >= 5 ~ "mature",
+    TRUE ~ "other"
+  ))
+# head(df)
+```
+
+
+```{r}
+df_category <- df %>%
+  group_by(category) %>%
+  summarise(total_count = sum(Count), .groups = "drop") %>%
+  arrange(desc(total_count))
+  # ungroup()
+
+df_category$category <- factor(df_category$category, levels = df_category$category)
+df_category <- df_category %>% filter(category != "other")
+df_category
+```
+
+
+
+```{r}
+ggplot(df_category, aes(x = category, y = total_count, fill = category)) +
+  geom_bar(stat = "identity") +
+  theme_minimal() +
+  labs(title = "Count of Categories", x = "Category", y = "Total Count") +
+  theme(legend.position = "none") +
+  scale_fill_manual(values = c("seedling"="forestgreen", 
+                               "sapling"="goldenrod", "mature"="darkred"))
+```
+
+
+
+```{r}
+ggplot(df_category, aes(x = category, y = total_count, group = 1)) +
+  geom_bar(stat = "identity", aes(fill = category), width = 0.6) +
+  geom_smooth(method = "loess", se=FALSE, color = "blue", size=1.5, span=0.8) +
+  theme_minimal() +
+  labs(title = "Count Per Category", x = "Category", y = "Total Count") +
+  theme(legend.position = "none") +
+  scale_fill_manual(values = c("seedling"="forestgreen", 
+                               "sapling"="goldenrod", "mature"="darkred"))
+```
+```{r}
+# stamps per species
+stamps <- df %>% 
+  filter(Plot.Size == 100, Remarks == "Stamps") %>%
+  group_by(Site, Species) %>%
+  summarise(stamps_Count = sum(Count), .groups = "drop") # ungroup result
+  # ungroup()
+
+stamps$Density <- stamps$stamps_Count/100*10000
+stamps
+```

@@ -1,0 +1,10 @@
+"0","ggplot(df_category, aes(x = category, y = total_count, group = 1)) +"
+"0","  geom_bar(stat = ""identity"", aes(fill = category), width = 0.6) +"
+"0","  geom_smooth(method = ""loess"", se=FALSE, color = ""blue"", size=1.5, span=0.8) +"
+"0","  theme_minimal() +"
+"0","  labs(title = ""Count Per Category"", x = ""Category"", y = ""Total Count"") +"
+"0","  theme(legend.position = ""none"") +"
+"0","  scale_fill_manual(values = c(""seedling""=""forestgreen"", "
+"0","                               ""sapling""=""goldenrod"", ""mature""=""darkred""))"
+"2","Error: object 'df_category' not found
+"

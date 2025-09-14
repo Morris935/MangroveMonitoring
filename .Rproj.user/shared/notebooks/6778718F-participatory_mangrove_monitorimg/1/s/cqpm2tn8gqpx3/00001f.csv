@@ -1,0 +1,3 @@
+"0","names(data1) <- names(data2)"
+"0","df <- rbind(data1, data2)"
+"0","head(df)"

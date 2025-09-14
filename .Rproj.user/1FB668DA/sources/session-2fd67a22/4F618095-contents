@@ -1,0 +1,82 @@
+---
+title: "PARTICIPATORY MANGROVE MONITORING"
+author: "Morris Ngowa"
+date: "2025-09-11"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## PARTICIPATORY MANGROVE MONITORING
+
+```{r}
+# load library
+library(dplyr)
+library(xlsx)
+library(ggplot2)
+library(gridExtra)
+library(data.table)
+```
+## Read data
+```{r}
+data1 <- read.xlsx("mangrove_monitoring.xlsx", sheet = "data")
+data2 <- read.xlsx("participatory_monitoring.xlsx", sheet = "data")
+head(data2)
+```
+
+```{r}
+
+```
+
+# combine data
+```{r}
+names(data1) <- names(data2)
+df <- rbind(data1, data2)
+head(df)
+```
+
+## create factors
+```{r}
+# Convert Gender and Status to factors
+df[c("PLOT.SIZE", "SITE","SPECIES","PLOT.NO")] <- lapply(
+  df[c("PLOT.SIZE", "SITE","SPECIES","PLOT.NO")], factor)
+
+# alternatively
+#df <- df %>%
+#  mutate(across(c(PLOT.SIZE, SITE,SPECIES,PLOT.NO), as.factor))
+str(df)
+
+```
+
+```{r}
+unique(df$SPECIES)
+```
+## Remove (.) in SPecies value
+```{r}
+df$SPECIES <- gsub("\\.", "",df$SPECIES)
+unique(df$SPECIES)
+```
+## Initialize species
+```{r}
+# Create abbreviation from first letters of each word
+# Function to abbreviate only if species has multiple words
+abbrev_fun <- function(x) {
+  if (is.na(x)) return(NA)                      # keep NA
+  words <- unlist(strsplit(x, " "))
+  if (length(words) == 2) {                     # only for 2-word names
+    paste0(toupper(substr(words, 1, 1)), collapse = "")
+  } else {
+    toupper(x)                                  # keep as is
+  }
+}
+
+```
+
+```{r}
+df$SPECIES <- sapply(df$SPECIES, abbrev_fun)
+unique(df$SPECIES)
+```
+
+

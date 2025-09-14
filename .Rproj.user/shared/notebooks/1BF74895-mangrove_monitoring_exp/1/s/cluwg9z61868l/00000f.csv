@@ -1,0 +1,4 @@
+"0","mangrove$Plot.Size = as.factor(mangrove$Plot.Size)"
+"0","mangrove$Site <- as.factor(mangrove$Site)"
+"0","mangrove$Species <- as.factor(mangrove$Species)"
+"0","mangrove$Plot.No <- as.factor(mangrove$Plot.No)"

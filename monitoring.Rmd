@@ -1,0 +1,181 @@
+---
+title: "Mangrove monitoring"
+author: "Morris Ngowa"
+date: "2025-02-25"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## 1. Load Necessary Libraries
+```{r}
+library(xlsx)
+library(dplyr)
+library(ggplot2)
+library(tidyr)
+library(vegan)
+library(BIOMASS)
+```
+
+
+## 2. Load Dataset
+```{r}
+df <- read.xlsx("mangrove_seedling.xlsx", sheetName = "raw_data", colIndex = 1:8)
+head(df)
+```
+
+```{r}
+## create factors
+#df$Plot.Size <- as.factor(df$Plot.Size)
+df$Site <- as.factor(df$Site)
+df$Species <- as.factor(df$Species)
+df$Plot.No <- as.factor(df$Plot.No)
+head(df)
+```
+
+```{r}
+# convert mm to cm for DBH whereplot size is 12.6, 1, 6.25
+df <- df %>% mutate(DBHcm = ifelse(Plot.Size == 100, DBH, DBH/10))
+head(df)
+```
+```{r}
+# export data to csv 
+# write.csv(df, file = "mangrove_data.csv", row.names = FALSE)
+```
+
+
+## 3. Species Distribution Across Sites
+```{r}
+species_distribution <- df %>% 
+  group_by(Site, Species) %>% 
+  summarise(Total_Count = sum(Count, na.rm = TRUE) ) %>% 
+  arrange(Site, desc(Total_Count))
+
+print(species_distribution)
+```
+
+Groups data by Site and Species.
+Computes the total count of each species at different sites.
+Arranges species in descending order per site.
+
+
+## 4. Tree Density Per Species Per Site
+```{r}
+density_per_site <- df %>% 
+  group_by(Site, Species) %>% 
+  summarise(Density = sum(Count) / sum(Plot.Size), .groups = 'drop')
+
+print(density_per_site)
+```
+
+Calculates tree density (total count divided by total plot size).
+
+## 5. Summary Statistics for DBH (Diameter at Breast Height) and Height
+
+```{r}
+summary_stats <- df %>% 
+  group_by(Species) %>% 
+  summarise(
+    Mean_DBH = mean(DBHcm, na.rm = TRUE),
+    Median_DBH = median(DBHcm, na.rm = TRUE),
+    Mean_Height = mean(H, na.rm = TRUE),
+    Median_Height = median(H, na.rm = TRUE),
+    Count = n()
+  )
+
+print(summary_stats)
+```
+
+Computes mean and median DBH and height for each species.
+
+## 6. Species Richness (Diversity per Plot)
+
+```{r}
+species_richness <- df %>% 
+  group_by(Site, Plot.No) %>% 
+  summarise(Richness = n_distinct(Species))
+
+print(species_richness)
+```
+
+Measures species richness (the number of unique species in each plot).
+
+## 7. Survival Rate Estimation
+```{r}
+survival_rate <- df %>% 
+  group_by(Species) %>% 
+  summarise(Survival_Rate = sum(Count, na.rm = TRUE) / n())
+
+print(survival_rate)
+```
+
+Estimates survival rate by dividing the total count by the number of observations.
+
+## 8. Growth Rate Estimation
+```{r}
+growth_rate <- df %>% 
+  group_by(Species) %>% 
+  summarise(Growth_Rate = mean(H / DBH, na.rm = TRUE))
+
+print(growth_rate)
+```
+
+Growth rate is estimated using Height-to-DBH ratio.
+
+## 9. Regeneration Rate Estimation
+```{r}
+regeneration_rate <- df %>% 
+  group_by(Species, Site) %>% 
+  summarise(Regeneration_Rate = sum(Count) / length(unique(Plot.No)), .groups = 'drop')
+
+print(regeneration_rate)
+```
+
+Regeneration rate is calculated as total count per species divided by the number of unique plots.
+
+## 10. Forest Density Calculation
+```{r}
+forest_density <- df %>% 
+  group_by(Site) %>% 
+  summarise(Forest_Density_stems_per_ha = sum(Count) / sum(Plot.Size)*10000)
+
+print(forest_density)
+```
+
+Forest density is calculated as total tree count per site divided by total plot size.
+
+## 11. Mangrove Biomass Estimation
+```{r}
+biomass <- df %>% 
+  mutate(Biomass = 0.251 * (DBH^2.46)) %>% 
+  group_by(Species, Site) %>% 
+  summarise(Total_Biomass = sum(Biomass, na.rm = TRUE), .groups = 'drop')
+
+print(biomass)
+```
+
+
+Uses an allometric equation to estimate biomass based on DBH.
+Groups results by Species and Site.
+
+
+## 12. Visualization - Species Distribution Across Sites
+```{r}
+ggplot(species_distribution, aes(x = reorder(Species, -Total_Count), y = Total_Count, fill = Site)) + 
+  geom_bar(stat = "identity", position = "dodge") +
+  theme_minimal() +
+  labs(title = "Mangrove Species Distribution across Sites", x = "Species", y = "Total Count") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+Creates a bar plot to visualize the distribution of species across sites.
+Key Insights from the Code
+Species Richness & Distribution – Understand which species are dominant in different locations.
+Survival Rate – Assess how well mangrove species are surviving.
+Growth Rate – Identify fast-growing vs. slow-growing species.
+Regeneration Rate – Evaluate the natural regeneration of mangrove forests.
+Forest Density – Understand tree density across different sites.
+Mangrove Biomass – Estimate total biomass, which is critical for carbon sequestration studies.
+Would you like any modifications or additional analyses? 🚀

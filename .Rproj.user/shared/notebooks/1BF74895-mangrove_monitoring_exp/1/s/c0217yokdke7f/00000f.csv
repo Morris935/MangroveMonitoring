@@ -1,0 +1,2 @@
+"0","df <- mangrove %>% select(-NA., -NA..1)"
+"0","head(df)"

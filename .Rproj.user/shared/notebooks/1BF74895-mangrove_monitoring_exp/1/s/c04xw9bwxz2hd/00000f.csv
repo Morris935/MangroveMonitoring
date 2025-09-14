@@ -1,0 +1,11 @@
+"0","# dead tree"
+"0","dead <- df %>% "
+"0","  filter(Plot.Size == 12.6, Remarks == ""Dead"") %>%"
+"0","  group_by(Site) %>%"
+"0","  summarise(Dead_Count = sum(Count))"
+"1","[1m[33mError[39m in `filter()`:[22m
+[38;5;232m[36mℹ[38;5;232m In argument: `Plot.Size == 12.6`.[39m
+[1mCaused by error:[22m
+[33m![39m object 'Plot.Size' not found
+[90mRun `]8;;x-r-run:rlang::last_trace()rlang::last_trace()]8;;` to see where the error occurred.[39m
+"
